@@ -178,13 +178,13 @@ double copied_triangle_convey_push(int64_t* count, int64_t* sr, sparsemat_t* L, 
     *sr = numpushed;
     *count = cnt;
 
-    long long count;
-    PAPI_stop(event_set, &count);
+    long long count1;
+    PAPI_stop(event_set, &count1);
 
-    
-    string s = "./pp/" + papi_event;
+    string gt = papi_event;
+    string s = "./pp/" + gt;
     FILE *fp = fopen(s.c_str(), "a+");
-    fprintf(fp, "%lld\n", count);
+    fprintf(fp, "%lld\n", count1);
     PAPI_cleanup_eventset(event_set);
     PAPI_destroy_eventset(&event_set);
 
@@ -246,7 +246,7 @@ int main (int argc, char* argv[]) {
     int printhelp = 0;
     char *papi_event;
     int opt;
-    while ((opt = getopt(argc, argv, "hb:c:M:n:f:a:e:K:")) != -1) {
+    while ((opt = getopt(argc, argv, "hb:c:M:n:f:a:e:K:P:")) != -1) {
         switch (opt) {
             case 'h': printhelp = 1; break;
             case 'b': sscanf(optarg,"%ld", &buf_cnt);  break;
@@ -436,7 +436,7 @@ int main (int argc, char* argv[]) {
     sh_refs = 0;
     total_sh_refs = 0;
     T0_fprintf(stderr, "      Conveyor: \n");
-    laptime = copied_triangle_convey_push(&tri_cnt, &sh_refs, L, U, alg);
+    laptime = copied_triangle_convey_push(&tri_cnt, &sh_refs, L, U, alg, papi_event);
     
     lgp_barrier();
     total_tri_cnt = lgp_reduce_add_l(tri_cnt);
