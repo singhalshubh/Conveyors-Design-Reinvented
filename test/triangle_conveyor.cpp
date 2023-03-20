@@ -229,7 +229,7 @@ int main (int argc, char* argv[]) {
 
     int64_t buf_cnt = 1024;
     int64_t models_mask = 8;  // default is running all models
-    int64_t l_numrows = 10000;         // number of a rows per thread
+    int64_t l_numrows = 75000;         // number of a rows per thread
     int64_t nz_per_row = 35;           // target number of nonzeros per row (only for Erdos-Renyi)
     int64_t read_graph = 0L;           // read graph from a file
     char filename[64];

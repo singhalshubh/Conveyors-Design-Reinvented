@@ -59,13 +59,14 @@ declare -a PAPI_eve=("PAPI_BR_CN"
 "PAPI_VEC_SP")
 
 mkdir pp
-make triangle_conveyor
+rm -rf exp2_result.txt
+make triangle_selector
 g++ exp2_compute_average.cpp -o exp2_res
 
 # For every "PAPI event, on one model version, generate pp/ and run 
 
 for str in ${PAPI_eve[@]}; do
-    oshrun -n 24 ./triangle_conveyor -n $NO_ROW -P $str
+    oshrun -n 24 ./triangle_selector -n $NO_ROW -P $str
     ./exp2_res -P $str
 done
 

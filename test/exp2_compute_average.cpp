@@ -29,7 +29,7 @@ int main(int argc, char *argv[]) {
     while(getline(fp, buf)) {
         long long num = 0;
         for(auto c : buf) {
-            num += num*10 + c;
+            num += num*10 + (c - '0');
         }
         values.push_back(num);
     }
