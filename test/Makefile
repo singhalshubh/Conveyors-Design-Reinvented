@@ -24,7 +24,7 @@ all: $(TARGETS)
 	#$(CXX) -g -O3 -std=c++11 $(HCLIB_CFLAGS) $(HCLIB_LDFLAGS) -o $@ $^ $(HCLIB_LDLIBS) -llibgetput
 	#$(CXX) -g -O3 -std=c++11 -I $(HPCTOOLKIT_HOME)/include $(HCLIB_CFLAGS) $(HCLIB_LDFLAGS) -o $@ $^ $(HCLIB_LDLIBS) -L $(HPCTOOLKIT_HOME)/lib/hpctoolkit/ -lspmat -lconvey -lexstack -llibgetput  -lhclib_bale_actor -lpapi -lm -lhpctoolkit
 	#$(CXX) -g -O3 -std=c++11 -DUSE_LOCK $(HCLIB_CFLAGS) $(HCLIB_LDFLAGS) -o $@_lock $^ $(HCLIB_LDLIBS) -lconvey -lhclib_bale_actor_lock
-
+	scorep-oshcxx -g -O3 -std=c++11 -DUSE_SHMEM=1 $(HCLIB_CFLAGS) $(HCLIB_LDFLAGS) -o $@ $^ $(HCLIB_LDLIBS) -lspmat -lconvey -lexstack -llibgetput -lhclib_bale_actor -lpapi -lm
 test:
 	for target in $(TARGETS); do $(SRUN) ./$$target; done
 
