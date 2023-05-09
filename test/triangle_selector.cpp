@@ -46,14 +46,6 @@ extern "C" {
 }
 #include <std_options.h>
 #include "selector.h"
-#include <papi.h>
-#include <string>
-#include <vector>
-#include <iostream>
-#include <fstream>
-#include <std_options.h>
-
-using namespace std;
 
 #define THREADS shmem_n_pes()
 #define MYTHREAD shmem_my_pe()
@@ -97,23 +89,8 @@ private:
 };
 
 
-double triangle_selector(int64_t* count, int64_t* sr, sparsemat_t* L, sparsemat_t* U, int64_t alg, char *papi_event) {
+double triangle_selector(int64_t* count, int64_t* sr, sparsemat_t* L, sparsemat_t* U, int64_t alg) {
     int64_t numpushed = 0;
-
-    if (PAPI_library_init(PAPI_VER_CURRENT) != PAPI_VER_CURRENT) {
-        fprintf(stderr,"Error creating papi init!\n");
-        return 0;
-    }
-    int event_set = PAPI_NULL;
-    if (PAPI_create_eventset(&event_set) != PAPI_OK) {
-        fprintf(stderr,"Error creating eventset!\n");
-    }
-    if (PAPI_add_named_event(event_set, papi_event) != PAPI_OK) {
-        fprintf(stderr,"Error adding eventset!\n");
-    }
-    if (PAPI_start(event_set) != PAPI_OK) {
-        fprintf(stderr,"Error starting!\n");
-    }
 
     if (!L) {
         T0_printf("ERROR: triangle_selector: NULL L!\n");
@@ -190,17 +167,6 @@ double triangle_selector(int64_t* count, int64_t* sr, sparsemat_t* L, sparsemat_
     }
 
     lgp_barrier();
-
-    long long count1;
-    PAPI_stop(event_set, &count1);
-
-    string gt = papi_event;
-    string s = "./pp/" + gt;
-    FILE *fp = fopen(s.c_str(), "a+");
-    fprintf(fp, "%lld\n", count1);
-    PAPI_cleanup_eventset(event_set);
-    PAPI_destroy_eventset(&event_set);
-
     *sr = numpushed;
     // Updating count is not necessary since that is taken cared by the mailbox logic
     // *count = cnt;
@@ -244,8 +210,8 @@ int main(int argc, char* argv[]) {
     hclib::launch(deps, 2, [=] {
 
         int64_t buf_cnt = 1024;
-        int64_t models_mask = 8;  // default is running all models
-        int64_t l_numrows = 100000;         // number of a rows per thread
+        int64_t models_mask = ALL_Models;  // default is running all models
+        int64_t l_numrows = 10000;         // number of a rows per thread
         int64_t nz_per_row = 35;           // target number of nonzeros per row (only for Erdos-Renyi)
         int64_t read_graph = 0L;           // read graph from a file
         char filename[64];
@@ -260,9 +226,8 @@ int main(int argc, char* argv[]) {
         double erdos_renyi_prob = 0.0;
 
         int printhelp = 0;
-        char *papi_event;
         int opt; 
-        while ((opt = getopt(argc, argv, "hb:c:M:n:f:a:e:K:P:")) != -1) {
+        while ((opt = getopt(argc, argv, "hb:c:M:n:f:a:e:K:")) != -1) {
             switch (opt) {
                 case 'h': printhelp = 1; break;
                 case 'b': sscanf(optarg,"%ld", &buf_cnt);  break;
@@ -274,7 +239,6 @@ int main(int argc, char* argv[]) {
                 case 'a': sscanf(optarg,"%ld", &alg); break;
                 case 'e': sscanf(optarg,"%lg", &erdos_renyi_prob); break;
                 case 'K': gen_kron_graph = 1; kron_graph_string = optarg; break;
-                case 'P': papi_event = optarg; break;
                 default:  break;
             }
         }
@@ -455,7 +419,7 @@ int main(int argc, char* argv[]) {
 
         // only running selector model
         T0_fprintf(stderr, "Running Selector: \n");
-        laptime = triangle_selector(&tri_cnt, &sh_refs, L, U, alg, papi_event);
+        laptime = triangle_selector(&tri_cnt, &sh_refs, L, U, alg);
         lgp_barrier();
 
         total_tri_cnt = lgp_reduce_add_l(tri_cnt);

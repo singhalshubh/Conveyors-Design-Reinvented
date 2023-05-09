@@ -40,18 +40,11 @@
  */
 
 #include <math.h>
-#include <papi.h>
 #include <shmem.h>
-#include <string>
 extern "C" {
 #include <spmat.h>
 }
-#include <vector>
-#include <iostream>
-#include <fstream>
 #include <std_options.h>
-
-using namespace std;
 
 typedef struct pkg_tri_t {
     int64_t w;    
@@ -97,23 +90,7 @@ static int64_t copied_tri_convey_push_process(int64_t* c, convey_t* conv, sparse
  * \param alg 0,1: 0 to compute (L & L * U), 1 to compute (L & U * L).
  * \return average run time
  */
-double copied_triangle_convey_push(int64_t* count, int64_t* sr, sparsemat_t* L, sparsemat_t* U, int64_t alg, char *papi_event) {
-    
-    if (PAPI_library_init(PAPI_VER_CURRENT) != PAPI_VER_CURRENT) {
-        fprintf(stderr,"Error creating papi init!\n");
-        return 0;
-    }
-    int event_set = PAPI_NULL;
-    if (PAPI_create_eventset(&event_set) != PAPI_OK) {
-        fprintf(stderr,"Error creating eventset!\n");
-    }
-    if (PAPI_add_named_event(event_set, papi_event) != PAPI_OK) {
-        fprintf(stderr,"Error adding eventset!\n");
-    }
-    if (PAPI_start(event_set) != PAPI_OK) {
-        fprintf(stderr,"Error starting!\n");
-    }
-    
+double copied_triangle_convey_push(int64_t* count, int64_t* sr, sparsemat_t* L, sparsemat_t* U, int64_t alg) {
     convey_t * conv = convey_new(SIZE_MAX, 0, NULL, 0);
     if (conv == NULL) return(-1);
     if (convey_begin(conv, sizeof(pkg_tri_t), 0) != convey_OK) return(-1);
@@ -177,17 +154,6 @@ double copied_triangle_convey_push(int64_t* count, int64_t* sr, sparsemat_t* L, 
     lgp_barrier();
     *sr = numpushed;
     *count = cnt;
-
-    long long count1;
-    PAPI_stop(event_set, &count1);
-
-    string gt = papi_event;
-    string s = "./pp/" + gt;
-    FILE *fp = fopen(s.c_str(), "a+");
-    fprintf(fp, "%lld\n", count1);
-    PAPI_cleanup_eventset(event_set);
-    PAPI_destroy_eventset(&event_set);
-
     minavgmaxD_t stat[1];
     t1 = wall_seconds() - t1;
     lgp_min_avg_max_d(stat, t1, THREADS);
@@ -228,12 +194,12 @@ int main (int argc, char* argv[]) {
     lgp_init(argc, argv);
 
     int64_t buf_cnt = 1024;
-    int64_t models_mask = 8;  // default is running all models
-    int64_t l_numrows = 75000;         // number of a rows per thread
+    int64_t models_mask = ALL_Models;  // default is running all models
+    int64_t l_numrows = 10000;         // number of a rows per thread
     int64_t nz_per_row = 35;           // target number of nonzeros per row (only for Erdos-Renyi)
     int64_t read_graph = 0L;           // read graph from a file
     char filename[64];
-    int64_t cores_per_node = 4;
+    int64_t cores_per_node = 0;
   
     double t1;
     int64_t i, j;
@@ -244,9 +210,8 @@ int main (int argc, char* argv[]) {
     double erdos_renyi_prob = 0.0;
   
     int printhelp = 0;
-    char *papi_event;
     int opt;
-    while ((opt = getopt(argc, argv, "hb:c:M:n:f:a:e:K:P:")) != -1) {
+    while ((opt = getopt(argc, argv, "hb:c:M:n:f:a:e:K:")) != -1) {
         switch (opt) {
             case 'h': printhelp = 1; break;
             case 'b': sscanf(optarg,"%ld", &buf_cnt);  break;
@@ -258,7 +223,6 @@ int main (int argc, char* argv[]) {
             case 'a': sscanf(optarg,"%ld", &alg); break;
             case 'e': sscanf(optarg,"%lg", &erdos_renyi_prob); break;
             case 'K': gen_kron_graph = 1; kron_graph_string = optarg; break;
-            case 'P': papi_event = optarg; break;
             default:  break;
         }
     }
@@ -436,7 +400,7 @@ int main (int argc, char* argv[]) {
     sh_refs = 0;
     total_sh_refs = 0;
     T0_fprintf(stderr, "      Conveyor: \n");
-    laptime = copied_triangle_convey_push(&tri_cnt, &sh_refs, L, U, alg, papi_event);
+    laptime = copied_triangle_convey_push(&tri_cnt, &sh_refs, L, U, alg);
     
     lgp_barrier();
     total_tri_cnt = lgp_reduce_add_l(tri_cnt);
